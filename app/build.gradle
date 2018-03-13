@@ -1,0 +1,51 @@
+apply plugin: 'com.android.application'
+
+android {
+    compileSdkVersion 26
+    defaultConfig {
+        applicationId "com.domain.train"
+        minSdkVersion 16
+        targetSdkVersion 26
+        versionCode 1
+        versionName "1.0"
+        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+def retrofit = '2.1.0'
+def butterKnife = "8.4.0"
+def support = '26.+'
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    testImplementation 'junit:junit:4.12'
+    androidTestImplementation 'com.android.support.test:runner:1.0.1'
+    androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.1'
+
+    implementation "com.android.support:appcompat-v7:$support"
+    implementation "com.android.support:support-annotations:$support"
+    implementation "com.android.support:design:$support"
+    implementation "com.android.support:recyclerview-v7:$support"
+
+    implementation 'com.arello-mobile:moxy:1.4.6'
+    implementation 'com.arello-mobile:moxy-android:1.4.6'
+    implementation 'com.arello-mobile:moxy-app-compat:1.4.6'
+    implementation "com.jakewharton:butterknife:$butterKnife"
+    annotationProcessor "com.jakewharton:butterknife-compiler:$butterKnife"
+    annotationProcessor 'com.arello-mobile:moxy-compiler:1.4.6'
+    implementation 'io.reactivex.rxjava2:rxandroid:2.0.1'
+    implementation 'io.reactivex.rxjava2:rxjava:2.1.3'
+    implementation 'com.google.code.gson:gson:2.5'
+    implementation 'com.michaelpardo:activeandroid:3.1.+'
+    implementation("com.mikepenz:materialdrawer:6.0.6@aar") {
+        transitive = true
+    }
+    implementation 'com.afollestad.material-dialogs:core:0.9.+'
+    implementation 'com.github.mancj:MaterialSearchBar:0.7.1'
+}

@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">Расписание поездов</string>
+    <string name="shedulers">Расписание</string>
+    <string name="about">О приложении</string>
+    <string name="name">Илья Захаров</string>
+    <string name="email">trekdeks1029@yandex.ru</string>
+    <string name="departureStation">Выберите станцию отправления</string>
+    <string name="arrivalStation">Выберите станцию прибытия</string>
+    <string name="departureDateSelect">Дата отправления</string>
+    <string name="departureDate">Выберите дату отправления</string>
+    <string name="selectStation">Выбор станции</string>
+    <string name="select">Выбрать</string>
+    <string name="back">Назад</string>
+    <string name="version">Версия</string>
+    <string name="address">Адрес</string>
+    <string name="copyright">Copyright: Все права защищены</string>
+</resources>
