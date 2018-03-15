@@ -4,10 +4,15 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
+import android.support.design.widget.NavigationView;
 import android.support.v4.app.Fragment;
+import android.support.v4.view.GravityCompat;
+import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.ProgressBar;
 import android.widget.Toast;
@@ -33,20 +38,7 @@ import com.google.gson.ExclusionStrategy;
 import com.google.gson.FieldAttributes;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.mikepenz.materialdrawer.AccountHeader;
-import com.mikepenz.materialdrawer.AccountHeaderBuilder;
-import com.mikepenz.materialdrawer.Drawer;
-import com.mikepenz.materialdrawer.DrawerBuilder;
-import com.mikepenz.materialdrawer.model.PrimaryDrawerItem;
-import com.mikepenz.materialdrawer.model.ProfileDrawerItem;
-import com.mikepenz.materialdrawer.model.interfaces.IDrawerItem;
 
-import org.greenrobot.eventbus.EventBus;
-import org.greenrobot.eventbus.Subscribe;
-
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
@@ -54,12 +46,10 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.LinkedList;
 import java.util.concurrent.Callable;
-import java.util.concurrent.TimeUnit;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
 import io.reactivex.Observable;
-import io.reactivex.ObservableSource;
 import io.reactivex.Observer;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.Disposable;
@@ -76,6 +66,10 @@ public class MainActivity extends MvpAppCompatActivity implements MainView {
     ProgressBar progressBar;
     @BindView(R.id.toolbar)
     Toolbar toolbar;
+    @BindView(R.id.drawer_layout)
+    DrawerLayout drawer;
+    @BindView(R.id.nav_view)
+    NavigationView navigationView;
 
 
     SharedPreferences sharedPreferences;
@@ -105,46 +99,38 @@ public class MainActivity extends MvpAppCompatActivity implements MainView {
     }
 
     public void createDrawable() {
-        AccountHeader headerResult = new AccountHeaderBuilder()
-                .withActivity(this)
-                .withHeaderBackground(R.color.colorPrimary)
-                .withAlternativeProfileHeaderSwitching(true)
-                .addProfiles(
-                        new ProfileDrawerItem().withName(R.string.name).withEmail(R.string.email).withIcon(R.drawable.ic_launcher_background)
-                )
-                .build();
 
+        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
+                this, drawer, toolbar, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
+        drawer.addDrawerListener(toggle);
+        toggle.syncState();
 
-//create the drawer and remember the `Drawer` result object
-        Drawer result = new DrawerBuilder()
-                .withActivity(this)
-                .withAccountHeader(headerResult)
-                .withToolbar(toolbar)
-                .withActionBarDrawerToggle(true)
-                .addDrawerItems(
-                        new PrimaryDrawerItem().withName(R.string.shedulers),
-                        new PrimaryDrawerItem().withName(R.string.about)
-                )
-                .withOnDrawerItemClickListener(new Drawer.OnDrawerItemClickListener() {
-                    @Override
-                    public boolean onItemClick(View view, int position, IDrawerItem drawerItem) {
-                        if (!mMainPresenter.isLoad()) {
-                            openFragment(position);
-                        } else
-                            toast("Пожалуйста подождите, идет загрузка данных");
+        navigationView.setNavigationItemSelectedListener(new NavigationView.OnNavigationItemSelectedListener() {
+            @Override
+            public boolean onNavigationItemSelected(@NonNull MenuItem item) {
 
-                        return false;
+                if (!mMainPresenter.isLoad()) {
+                    item.setChecked(true);
+                    Log.d(TAG, String.valueOf(item.getItemId()));
+                    switch (item.getItemId()) {
+                        case R.id.schedule:
+                            openFragment(1);
+                            break;
+                        case R.id.about:
+                            openFragment(2);
+                            break;
+                        default:
+                            openFragment(1);
+                            break;
                     }
-                })
+                    drawer.closeDrawer(GravityCompat.START);
+                } else
+                    toast("Пожалуйста подождите, идет загрузка данных");
 
-                .build();
-
-        result.getActionBarDrawerToggle().setHomeAsUpIndicator(getResources().getDrawable(R.drawable.ic_menu));
-        result.getActionBarDrawerToggle().getDrawerArrowDrawable().setColor(getResources().getColor(R.color.white));
-        //result.openDrawer();
-
-        //result.getActionBarDrawerToggle().setDrawerIndicatorEnabled(true);
-
+                return false;
+            }
+        });
     }
 
     public void openFragment(int position) {
@@ -329,5 +315,14 @@ public class MainActivity extends MvpAppCompatActivity implements MainView {
                 .addDeserializationExclusionStrategy(exclusionStrategy)
                 .create();
         return gson;
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (drawer.isDrawerOpen(GravityCompat.START)) {
+            drawer.closeDrawer(GravityCompat.START);
+        } else {
+            super.onBackPressed();
+        }
     }
 }

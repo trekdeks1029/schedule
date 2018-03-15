@@ -1,5 +1,7 @@
 package com.domain.train.ui.fragment.schedule;
 
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
@@ -29,9 +31,6 @@ import com.google.gson.FieldAttributes;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
-import org.greenrobot.eventbus.EventBus;
-import org.greenrobot.eventbus.Subscribe;
-
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -51,10 +50,9 @@ public class ScheduleFragment extends MvpAppCompatFragment implements ScheduleVi
     @InjectPresenter
     SchedulePresenter mSchedulePresenter;
 
-    MaterialDialog dialog;
+    AlertDialog dialog;
 
     SharedPreferences sharedPreferences;
-
 
     @BindColor(R.color.colorPrimary)
     int primaryColor;
@@ -114,6 +112,7 @@ public class ScheduleFragment extends MvpAppCompatFragment implements ScheduleVi
             @Override
             public boolean onTouch(View v, MotionEvent event) {
                 if (MotionEvent.ACTION_UP == event.getAction()) {
+                    departureEditText.setFocusable(true);
                     startActivityForResult(SelectStationActivity.getIntent(getActivity(), 1), 91);
                 }
                 return false;
@@ -123,47 +122,47 @@ public class ScheduleFragment extends MvpAppCompatFragment implements ScheduleVi
             @Override
             public boolean onTouch(View v, MotionEvent event) {
                 if (MotionEvent.ACTION_UP == event.getAction()) {
+                    arrivalEditText.setFocusable(true);
                     startActivityForResult(SelectStationActivity.getIntent(getActivity(), 2), 91);
                 }
                 return false;
             }
         });
-    }
 
-    @Override
-    public void openCalendar() {
-        MaterialDialog.Builder builder = new MaterialDialog.Builder(getActivity())
-                .title(R.string.departureDateSelect)
-                .customView(R.layout.calendar_dialog, false)
-                .cancelable(true)
-                .positiveText(R.string.select)
-                .positiveColor(primaryColor)
-                .negativeText(R.string.back)
-                .negativeColor(greyColor)
-                .onPositive(new MaterialDialog.SingleButtonCallback() {
+
+        final View calendarView = getLayoutInflater().inflate(R.layout.calendar_dialog, null);
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+        builder.setTitle(R.string.departureDateSelect)
+                .setCancelable(false)
+                .setView(calendarView)
+                .setPositiveButton(R.string.select, new DialogInterface.OnClickListener() {
                     @Override
-                    public void onClick(@NonNull MaterialDialog dialog, @NonNull DialogAction which) {
-                        DatePicker datePicker = (DatePicker) dialog.findViewById(R.id.datePicker);
+                    public void onClick(DialogInterface dialog, int which) {
+                        DatePicker datePicker = (DatePicker) calendarView.findViewById(R.id.datePicker);
                         Date date = getDateFromDatePicker(datePicker);
                         mSchedulePresenter.setDate(new SimpleDateFormat("dd/MM/yy").format(date.getTime()));
                         mSchedulePresenter.closeCalendar();
                     }
                 })
-                .onNegative(new MaterialDialog.SingleButtonCallback() {
+                .setNegativeButton(R.string.back, new DialogInterface.OnClickListener() {
                     @Override
-                    public void onClick(@NonNull MaterialDialog dialog, @NonNull DialogAction which) {
-                        dialog.hide();
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.cancel();
                     }
                 });
+        dialog = builder.create();
+    }
 
-        dialog = builder.build();
+    @Override
+    public void openCalendar() {
         dialog.show();
     }
 
     @Override
     public void closeCalendar() {
         if (dialog != null)
-            dialog.hide();
+            dialog.cancel();
     }
 
     public static java.util.Date getDateFromDatePicker(DatePicker datePicker) {
@@ -202,8 +201,6 @@ public class ScheduleFragment extends MvpAppCompatFragment implements ScheduleVi
         super.onResume();
         if (!sharedPreferences.getString("STATION", "").isEmpty()) {
             Station station = getGson().fromJson(sharedPreferences.getString("STATION", ""), Station.class);
-
-            Log.d("trekdeks", sharedPreferences.getString("STATION", ""));
 
             if (station.getType() == 1) {
                 mSchedulePresenter.setDeparture(station);

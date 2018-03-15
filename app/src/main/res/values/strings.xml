@@ -14,4 +14,6 @@
     <string name="version">Версия</string>
     <string name="address">Адрес</string>
     <string name="copyright">Copyright: Все права защищены</string>
+    <string name="navigation_drawer_open">open</string>
+    <string name="navigation_drawer_close">close</string>
 </resources>

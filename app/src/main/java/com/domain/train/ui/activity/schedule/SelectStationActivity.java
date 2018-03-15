@@ -5,7 +5,12 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.support.v7.widget.SearchView;
+import android.support.v7.widget.Toolbar;
+import android.text.TextUtils;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.ProgressBar;
@@ -29,6 +34,7 @@ import com.mancj.materialsearchbar.MaterialSearchBar;
 
 import java.util.LinkedList;
 
+import butterknife.BindColor;
 import butterknife.BindView;
 import butterknife.ButterKnife;
 
@@ -38,12 +44,19 @@ public class SelectStationActivity extends MvpAppCompatActivity implements Selec
     SelectStationPresenter mSelectStationPresenter;
 
 
-    @BindView(R.id.searchBar)
-    MaterialSearchBar searchBar;
+    @BindView(R.id.toolbar)
+    Toolbar toolbar;
     @BindView(R.id.rvStation)
     RecyclerView rvStation;
     @BindView(R.id.progressBar)
     ProgressBar progressBar;
+
+    @BindColor(R.color.colorPrimary)
+    int primaryColor;
+    @BindColor(R.color.grey)
+    int greyColor;
+    @BindColor(R.color.white)
+    int whiteColor;
 
 
     StationAdapter mStationAdapter;
@@ -51,9 +64,8 @@ public class SelectStationActivity extends MvpAppCompatActivity implements Selec
     boolean isRunning = false;
 
 
-
     @ProvidePresenter
-    SelectStationPresenter getmSelectStationPresenter(){
+    SelectStationPresenter getmSelectStationPresenter() {
         return new SelectStationPresenter(getIntent().getIntExtra("TYPE", 1));
     }
 
@@ -74,36 +86,23 @@ public class SelectStationActivity extends MvpAppCompatActivity implements Selec
     }
 
     public void createPage() {
-        searchBar.setPlaceHolder(getString(R.string.selectStation));
+        setSupportActionBar(toolbar);
+        getSupportActionBar().setHomeButtonEnabled(true);
         LinearLayoutManager layoutManager = new LinearLayoutManager(this);
         mStationAdapter = new StationAdapter(this);
         rvStation.setLayoutManager(layoutManager);
         rvStation.setAdapter(mStationAdapter);
         rvStation.addOnScrollListener(onScroll);
 
-        searchBar.setOnSearchActionListener(new MaterialSearchBar.OnSearchActionListener() {
-            @Override
-            public void onSearchStateChanged(boolean enabled) {
-                Log.d("trekdeks", "change");
-            }
+        /*closeKeyBoard();
+        mSelectStationPresenter.newList();
+        mStationAdapter.reload();
+        mSelectStationPresenter.getCities(text.toString());*/
 
-            @Override
-            public void onSearchConfirmed(CharSequence text) {
-                closeKeyBoard();
-                mSelectStationPresenter.newList();
-                mStationAdapter.reload();
-                mSelectStationPresenter.getCities(text.toString());
-            }
-
-            @Override
-            public void onButtonClicked(int buttonCode) {
-                Log.d("trekdeks", String.valueOf(buttonCode));
-            }
-        });
     }
 
     public void closeKeyBoard() {
-       View view = this.getCurrentFocus();
+        View view = this.getCurrentFocus();
         if (view != null) {
             InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
             imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
@@ -148,6 +147,31 @@ public class SelectStationActivity extends MvpAppCompatActivity implements Selec
     @Override
     public void toast(String text) {
         Toast.makeText(this, text, Toast.LENGTH_LONG).show();
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.search_menu, menu);
+
+        MenuItem myActionMenuItem = menu.findItem(R.id.action_search);
+        final SearchView searchView = (SearchView) myActionMenuItem.getActionView();
+        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+            @Override
+            public boolean onQueryTextSubmit(String query) {
+                closeKeyBoard();
+                mSelectStationPresenter.newList();
+                mStationAdapter.reload();
+                mSelectStationPresenter.getCities(query.toString());
+                return true;
+            }
+
+            @Override
+            public boolean onQueryTextChange(String newText) {
+                return false;
+            }
+        });
+
+        return true;
     }
 
     private RecyclerView.OnScrollListener onScroll = new RecyclerView.OnScrollListener() {
