@@ -1,5 +1,6 @@
 package com.domain.train.adapters;
 
+import android.support.annotation.Nullable;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.util.Pair;
@@ -20,7 +21,6 @@ import java.util.Random;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
-import io.reactivex.annotations.Nullable;
 
 /**
  * Created by Ilya on 05.03.2017.
@@ -70,7 +70,7 @@ public class StationAdapter extends RecyclerView.Adapter<StationAdapter.ViewHold
 
     @Override
     public long getItemId(int i) {
-        return getItem(i).getId();
+        return getItem(i).getStationId();
     }
 
     @Override

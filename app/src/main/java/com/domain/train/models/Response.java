@@ -1,9 +1,5 @@
 package com.domain.train.models;
 
-import com.activeandroid.Model;
-import com.activeandroid.annotation.Table;
-import com.google.gson.annotations.Expose;
-import com.google.gson.annotations.SerializedName;
 
 import java.io.Serializable;
 import java.util.LinkedList;

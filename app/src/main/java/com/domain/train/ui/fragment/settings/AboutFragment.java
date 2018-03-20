@@ -3,26 +3,20 @@ package com.domain.train.ui.fragment.settings;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.support.v4.app.Fragment;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
-import com.arellomobile.mvp.MvpAppCompatFragment;
 import com.domain.train.R;
-import com.domain.train.presentation.view.settings.AboutView;
-import com.domain.train.presentation.presenter.settings.AboutPresenter;
 
-import com.arellomobile.mvp.MvpFragment;
-import com.arellomobile.mvp.presenter.InjectPresenter;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
 
-public class AboutFragment extends MvpAppCompatFragment implements AboutView {
+public class AboutFragment extends Fragment {
     public static final String TAG = "AboutFragment";
-    @InjectPresenter
-    AboutPresenter mAboutPresenter;
 
 
     @BindView(R.id.about_version)

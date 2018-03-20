@@ -10,7 +10,7 @@
         android:id="@+id/toolbar"
         style="@style/ToolbarStyle"
         android:layout_width="match_parent"
-        android:layout_height="@dimen/materialize_toolbar"
+        android:layout_height="56dp"
         app:titleTextColor="@android:color/white"></android.support.v7.widget.Toolbar>
 
 

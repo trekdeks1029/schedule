@@ -3,6 +3,8 @@ package com.domain.train.ui.activity.main;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.database.sqlite.SQLiteDatabase;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.design.widget.NavigationView;
@@ -10,6 +12,7 @@ import android.support.v4.app.Fragment;
 import android.support.v4.view.GravityCompat;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
+import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.MenuItem;
@@ -17,49 +20,29 @@ import android.view.View;
 import android.widget.ProgressBar;
 import android.widget.Toast;
 
-import com.activeandroid.ActiveAndroid;
-import com.activeandroid.query.Select;
-import com.arellomobile.mvp.MvpAppCompatActivity;
-import com.domain.train.App;
 import com.domain.train.R;
 import com.domain.train.models.City;
 import com.domain.train.models.Response;
 import com.domain.train.models.Station;
-import com.domain.train.presentation.view.main.MainView;
-import com.domain.train.presentation.presenter.main.MainPresenter;
-
-import com.arellomobile.mvp.MvpActivity;
 
 
-import com.arellomobile.mvp.presenter.InjectPresenter;
 import com.domain.train.ui.fragment.schedule.ScheduleFragment;
 import com.domain.train.ui.fragment.settings.AboutFragment;
-import com.google.gson.ExclusionStrategy;
-import com.google.gson.FieldAttributes;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import com.domain.train.utils.DBHelper;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.util.LinkedList;
-import java.util.concurrent.Callable;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
-import io.reactivex.Observable;
-import io.reactivex.Observer;
-import io.reactivex.android.schedulers.AndroidSchedulers;
-import io.reactivex.disposables.Disposable;
-import io.reactivex.functions.Function;
-import io.reactivex.schedulers.Schedulers;
 
-public class MainActivity extends MvpAppCompatActivity implements MainView {
+public class MainActivity extends AppCompatActivity {
     public static final String TAG = "MainActivity";
-    @InjectPresenter
-    MainPresenter mMainPresenter;
 
 
     @BindView(R.id.progressBar)
@@ -74,6 +57,12 @@ public class MainActivity extends MvpAppCompatActivity implements MainView {
 
     SharedPreferences sharedPreferences;
 
+    Context context;
+
+    boolean isLoad = false;
+
+    AsyncTask task;
+
 
     public static Intent getIntent(final Context context) {
         Intent intent = new Intent(context, MainActivity.class);
@@ -86,10 +75,16 @@ public class MainActivity extends MvpAppCompatActivity implements MainView {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        context = this;
         ButterKnife.bind(this);
         sharedPreferences = getSharedPreferences("APP", MODE_PRIVATE);
-        if (savedInstanceState == null && new City().getCountAllCities() > 0)
-            openFragment(1);
+        if (new Station().conutStations(new DBHelper(this)) > 0) {
+            if (savedInstanceState == null)
+                openFragment(1);
+
+        } else {
+            load();
+        }
         createPage();
     }
 
@@ -110,7 +105,7 @@ public class MainActivity extends MvpAppCompatActivity implements MainView {
             @Override
             public boolean onNavigationItemSelected(@NonNull MenuItem item) {
 
-                if (!mMainPresenter.isLoad()) {
+                if (!isLoad()) {
                     item.setChecked(true);
                     Log.d(TAG, String.valueOf(item.getItemId()));
                     switch (item.getItemId()) {
@@ -171,113 +166,121 @@ public class MainActivity extends MvpAppCompatActivity implements MainView {
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if (resultCode == RESULT_OK)
-            sharedPreferences.edit().putString("STATION", getGson().toJson(data.getSerializableExtra("STATION"))).apply();
-        else
+        if (resultCode == RESULT_OK) {
+            sharedPreferences.edit().putInt("STATION", data.getIntExtra("STATION", 0)).apply();
+            sharedPreferences.edit().putInt("TYPE", data.getIntExtra("TYPE", 0)).apply();
+        } else
             super.onActivityResult(requestCode, resultCode, data);
     }
 
 
-    @Override
     public void loadData() {
-        Observable.fromCallable(new Callable<String>() {
-            @Override
-            public String call() throws Exception {
-                return loadJSONFromAsset();
-            }
-        }).subscribeOn(Schedulers.io())
-                .map(new Function<String, String>() {
-                    @Override
-                    public String apply(String s) throws Exception {
-                        int count = 0;
-                        Response response = getResponseFromJson(s);
-                        count += saveDb(response.getCitiesFrom(), 1);
-                        count += saveDb(response.getCitiesTo(), 2);
-                        return "cities saved - " + count;
-                    }
-                })
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(new Observer<String>() {
-                    @Override
-                    public void onSubscribe(Disposable d) {
-
-                    }
-
-                    @Override
-                    public void onNext(String s) {
-                        Log.d("trekdeks", s);
-                    }
-
-                    @Override
-                    public void onError(Throwable e) {
-                        Toast.makeText(MainActivity.this, e.getMessage(), Toast.LENGTH_LONG).show();
-                        mMainPresenter.setLoad(false);
-                        endProgress();
-                    }
-
-                    @Override
-                    public void onComplete() {
-                        mMainPresenter.setLoad(false);
-                        endProgress();
-                        openFragment(1);
-                    }
-                });
+        task = new Task().execute();
     }
 
-    @Override
+
     public void startProgress() {
         progressBar.setVisibility(View.VISIBLE);
     }
 
-    @Override
+
     public void endProgress() {
         progressBar.setVisibility(View.GONE);
     }
 
     public Response getResponseFromJson(String json) {
-        Response response;
+        Response response = new Response();
 
         if (json != null) {
-            //необходимо для сериализации данных если модель наследуется от ORM
-
-            response = getGson().fromJson(json, Response.class);
+            //response = getGson().fromJson(json, Response.class);
+            JSONObject jsonObject = null;
+            try {
+                jsonObject = new JSONObject(json);
+                response.setCitiesFrom(getIterationJSON(jsonObject.getJSONArray("citiesFrom")));
+                response.setCitiesTo(getIterationJSON(jsonObject.getJSONArray("citiesTo")));
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
 
             return response;
         }
-
         return null;
-
     }
 
+    public LinkedList<City> getIterationJSON(JSONArray array) {
+        try {
+            LinkedList<City> cities = new LinkedList<>();
+
+            for (int i = 0; i < array.length(); i++) {
+                JSONObject cityJson = (JSONObject) array.get(i);
+
+                City city = new City();
+                LinkedList<Station> stations = new LinkedList<>();
+
+                city.setType(1);
+                city.setCityId(cityJson.getInt("cityId"));
+                city.setCityTitle(cityJson.getString("cityTitle"));
+                city.setCountryTitle(cityJson.getString("countryTitle"));
+                city.setDistrictTitle(cityJson.getString("districtTitle"));
+                city.setRegionTitle(cityJson.getString("regionTitle"));
+
+                for (int b = 0; b < cityJson.getJSONArray("stations").length(); b++) {
+                    Station station = new Station();
+                    JSONObject stationJson = (JSONObject) cityJson.getJSONArray("stations").get(b);
+
+                    station.setType(1);
+                    station.setCityId(stationJson.getInt("cityId"));
+                    station.setCityTitle(stationJson.getString("cityTitle"));
+                    station.setCountryTitle(stationJson.getString("countryTitle"));
+                    station.setDistrictTitle(stationJson.getString("districtTitle"));
+                    station.setRegionTitle(stationJson.getString("regionTitle"));
+                    station.setStationId(stationJson.getInt("stationId"));
+                    station.setStationTitle(stationJson.getString("stationTitle"));
+
+                    stations.add(station);
+                }
+
+                city.setStations(stations);
+
+                cities.add(city);
+            }
+
+            return cities;
+
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
 
     public int saveDb(LinkedList<City> cities, int type) {
         if (cities == null)
             return 0;
-        //транзакция для сохранения в БД
-        ActiveAndroid.beginTransaction();
+
+        DBHelper helper = new DBHelper(this);
+        SQLiteDatabase db = helper.getWritableDatabase();
+        db.beginTransaction();
         try {
             for (int b = 0; b < cities.size(); b++) {
-
                 City city = cities.get(b);
 
-                //по правилам ORM вначале сохраняем вложенные объекты
                 LinkedList<Station> stations = city.getStations();
                 for (int i = 0; i < stations.size(); i++) {
                     Station station = stations.get(i);
                     station.setType(type);
-                    station.save();
+
+                    station.insertStation(db, type);
                     stations.set(i, station);
                 }
                 city.setType(type);
                 city.setStations(stations);
-                city.save();
             }
-            ActiveAndroid.setTransactionSuccessful();
+
+            db.setTransactionSuccessful();
         } finally {
-            ActiveAndroid.endTransaction();
+            db.endTransaction();
         }
-        int count = new Select().from(City.class).where("id > 0").count();
-        return count;
+        return 1;
     }
 
     public String loadJSONFromAsset() {
@@ -296,25 +299,18 @@ public class MainActivity extends MvpAppCompatActivity implements MainView {
         return json;
     }
 
-    public Gson getGson() {
-        ExclusionStrategy exclusionStrategy = new ExclusionStrategy() {
+    public void load() {
+        setLoad(true);
+        startProgress();
+        loadData();
+    }
 
-            @Override
-            public boolean shouldSkipField(FieldAttributes fieldAttributes) {
-                return false;
-            }
+    public boolean isLoad() {
+        return isLoad;
+    }
 
-            @Override
-            public boolean shouldSkipClass(Class<?> clazz) {
-                return clazz == Field.class || clazz == Method.class;
-            }
-        };
-        Gson gson = new GsonBuilder()
-                .excludeFieldsWithModifiers(Modifier.FINAL, Modifier.TRANSIENT, Modifier.STATIC)
-                .addSerializationExclusionStrategy(exclusionStrategy)
-                .addDeserializationExclusionStrategy(exclusionStrategy)
-                .create();
-        return gson;
+    public void setLoad(boolean isLoad) {
+        this.isLoad = isLoad;
     }
 
     @Override
@@ -324,5 +320,56 @@ public class MainActivity extends MvpAppCompatActivity implements MainView {
         } else {
             super.onBackPressed();
         }
+    }
+
+
+    class Task extends AsyncTask<Void, Void, Integer> {
+
+        @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
+            startProgress();
+        }
+
+        @Override
+        protected Integer doInBackground(Void... params) {
+            int count = 0;
+            String json = loadJSONFromAsset();
+            Response response = getResponseFromJson(json);
+            if (response != null) {
+                count += saveDb(response.getCitiesFrom(), 1);
+                count += saveDb(response.getCitiesTo(), 2);
+            }
+            return count;
+        }
+
+        @Override
+        protected void onPostExecute(Integer result) {
+            super.onPostExecute(result);
+
+            if (result > 0) {
+                setLoad(false);
+                endProgress();
+                openFragment(1);
+            } else {
+                Toast.makeText(MainActivity.this, "Ошибка сохранения станций", Toast.LENGTH_LONG).show();
+                setLoad(false);
+                endProgress();
+            }
+
+
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        if (task != null)
+            task.cancel(true);
+        super.onPause();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
     }
 }

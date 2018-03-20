@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
+import android.support.v4.app.Fragment;
 import android.text.InputType;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -15,25 +16,12 @@ import android.view.ViewGroup;
 import android.widget.DatePicker;
 import android.widget.EditText;
 
-import com.afollestad.materialdialogs.DialogAction;
-import com.afollestad.materialdialogs.MaterialDialog;
-import com.arellomobile.mvp.MvpAppCompatFragment;
 import com.domain.train.R;
 import com.domain.train.models.Station;
-import com.domain.train.presentation.view.schedule.ScheduleView;
-import com.domain.train.presentation.presenter.schedule.SchedulePresenter;
 
-import com.arellomobile.mvp.MvpFragment;
-import com.arellomobile.mvp.presenter.InjectPresenter;
 import com.domain.train.ui.activity.schedule.SelectStationActivity;
-import com.google.gson.ExclusionStrategy;
-import com.google.gson.FieldAttributes;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import com.domain.train.utils.DBHelper;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
@@ -41,14 +29,11 @@ import java.util.Date;
 import butterknife.BindColor;
 import butterknife.BindView;
 import butterknife.ButterKnife;
-import butterknife.OnClick;
 
 import static android.content.Context.MODE_PRIVATE;
 
-public class ScheduleFragment extends MvpAppCompatFragment implements ScheduleView {
+public class ScheduleFragment extends Fragment{
     public static final String TAG = "ScheduleFragment";
-    @InjectPresenter
-    SchedulePresenter mSchedulePresenter;
 
     AlertDialog dialog;
 
@@ -65,6 +50,12 @@ public class ScheduleFragment extends MvpAppCompatFragment implements ScheduleVi
     EditText arrivalEditText;
     @BindView(R.id.date)
     EditText dateEditText;
+
+
+
+
+    Station departure, arrival;
+
 
 
     public static ScheduleFragment newInstance(int type) {
@@ -104,7 +95,7 @@ public class ScheduleFragment extends MvpAppCompatFragment implements ScheduleVi
             @Override
             public boolean onTouch(View v, MotionEvent event) {
                 if (MotionEvent.ACTION_UP == event.getAction())
-                    mSchedulePresenter.openCalendar();
+                    openCalendar();
                 return false;
             }
         });
@@ -141,8 +132,8 @@ public class ScheduleFragment extends MvpAppCompatFragment implements ScheduleVi
                     public void onClick(DialogInterface dialog, int which) {
                         DatePicker datePicker = (DatePicker) calendarView.findViewById(R.id.datePicker);
                         Date date = getDateFromDatePicker(datePicker);
-                        mSchedulePresenter.setDate(new SimpleDateFormat("dd/MM/yy").format(date.getTime()));
-                        mSchedulePresenter.closeCalendar();
+                        setDate(new SimpleDateFormat("dd/MM/yy").format(date.getTime()));
+                        closeCalendar();
                     }
                 })
                 .setNegativeButton(R.string.back, new DialogInterface.OnClickListener() {
@@ -154,12 +145,12 @@ public class ScheduleFragment extends MvpAppCompatFragment implements ScheduleVi
         dialog = builder.create();
     }
 
-    @Override
+
     public void openCalendar() {
         dialog.show();
     }
 
-    @Override
+
     public void closeCalendar() {
         if (dialog != null)
             dialog.cancel();
@@ -176,20 +167,36 @@ public class ScheduleFragment extends MvpAppCompatFragment implements ScheduleVi
         return calendar.getTime();
     }
 
-    @Override
+
     public void changeDate(String date) {
         dateEditText.setText(date);
     }
 
-    @Override
+
     public void changeDepartue(String departure) {
         this.departureEditText.setText(departure);
     }
 
-    @Override
+
     public void changeArrival(String arrival) {
         arrivalEditText.setText(arrival);
     }
+
+
+    public void setDate(String date) {
+        changeDate(date);
+    }
+
+    public void setDeparture(Station station) {
+        departure = station;
+        changeDepartue(station.getCityTitle() + ", " + station.getStationTitle());
+    }
+
+    public void setArrival(Station station) {
+        arrival = station;
+        changeArrival(station.getCityTitle() + ", " + station.getStationTitle());
+    }
+
 
     @Override
     public void onPause() {
@@ -199,37 +206,17 @@ public class ScheduleFragment extends MvpAppCompatFragment implements ScheduleVi
     @Override
     public void onResume() {
         super.onResume();
-        if (!sharedPreferences.getString("STATION", "").isEmpty()) {
-            Station station = getGson().fromJson(sharedPreferences.getString("STATION", ""), Station.class);
+        if (sharedPreferences.getInt("STATION", 0) != 0) {
+            Station station = new Station().selectStationId(sharedPreferences.getInt("STATION", 0), new DBHelper(getActivity()));
 
-            if (station.getType() == 1) {
-                mSchedulePresenter.setDeparture(station);
-            } else if (station.getType() == 2) {
-                mSchedulePresenter.setArrival(station);
+            if (sharedPreferences.getInt("TYPE", 0) == 1) {
+                setDeparture(station);
+            } else if (sharedPreferences.getInt("TYPE", 0) == 2) {
+                setArrival(station);
             }
 
             sharedPreferences.edit().remove("STATION").apply();
+            sharedPreferences.edit().remove("TYPE").apply();
         }
-    }
-
-    public Gson getGson() {
-        ExclusionStrategy exclusionStrategy = new ExclusionStrategy() {
-
-            @Override
-            public boolean shouldSkipField(FieldAttributes fieldAttributes) {
-                return false;
-            }
-
-            @Override
-            public boolean shouldSkipClass(Class<?> clazz) {
-                return clazz == Field.class || clazz == Method.class;
-            }
-        };
-        Gson gson = new GsonBuilder()
-                .excludeFieldsWithModifiers(Modifier.FINAL, Modifier.TRANSIENT, Modifier.STATIC)
-                .addSerializationExclusionStrategy(exclusionStrategy)
-                .addDeserializationExclusionStrategy(exclusionStrategy)
-                .create();
-        return gson;
     }
 }

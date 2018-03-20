@@ -3,11 +3,11 @@ package com.domain.train.ui.activity.schedule;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
+import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.SearchView;
 import android.support.v7.widget.Toolbar;
-import android.text.TextUtils;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -16,21 +16,14 @@ import android.view.inputmethod.InputMethodManager;
 import android.widget.ProgressBar;
 import android.widget.Toast;
 
-import com.arellomobile.mvp.MvpAppCompatActivity;
-import com.arellomobile.mvp.presenter.ProvidePresenter;
 import com.domain.train.R;
 import com.domain.train.adapters.StationAdapter;
-import com.domain.train.models.City;
 import com.domain.train.models.Station;
-import com.domain.train.presentation.view.schedule.SelectStationView;
-import com.domain.train.presentation.presenter.schedule.SelectStationPresenter;
-
-import com.arellomobile.mvp.MvpActivity;
 
 
-import com.arellomobile.mvp.presenter.InjectPresenter;
+
 import com.domain.train.ui.activity.main.MainActivity;
-import com.mancj.materialsearchbar.MaterialSearchBar;
+import com.domain.train.utils.DBHelper;
 
 import java.util.LinkedList;
 
@@ -38,11 +31,8 @@ import butterknife.BindColor;
 import butterknife.BindView;
 import butterknife.ButterKnife;
 
-public class SelectStationActivity extends MvpAppCompatActivity implements SelectStationView, StationAdapter.OnClickListenerDetail {
+public class SelectStationActivity extends AppCompatActivity implements StationAdapter.OnClickListenerDetail {
     public static final String TAG = "SelectStationActivity";
-    @InjectPresenter
-    SelectStationPresenter mSelectStationPresenter;
-
 
     @BindView(R.id.toolbar)
     Toolbar toolbar;
@@ -63,11 +53,13 @@ public class SelectStationActivity extends MvpAppCompatActivity implements Selec
 
     boolean isRunning = false;
 
+    LinkedList<Station> stations = new LinkedList<>();
 
-    @ProvidePresenter
-    SelectStationPresenter getmSelectStationPresenter() {
-        return new SelectStationPresenter(getIntent().getIntExtra("TYPE", 1));
-    }
+    int count = 50, offset = 0, type = 1;
+
+    String station = null;
+
+    boolean end = false;
 
 
     public static Intent getIntent(final Context context, int type) {
@@ -82,7 +74,9 @@ public class SelectStationActivity extends MvpAppCompatActivity implements Selec
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_select_station);
         ButterKnife.bind(this);
+        type = getIntent().getIntExtra("TYPE", 1);
         createPage();
+        getCities(null);
     }
 
     public void createPage() {
@@ -111,9 +105,10 @@ public class SelectStationActivity extends MvpAppCompatActivity implements Selec
 
     @Override
     public void onClickSelect(View v, int position) {
-        if (mSelectStationPresenter.getStation(position) != null) {
+        if (getStation(position) != null) {
             Intent intent = new Intent(this, MainActivity.class);
-            intent.putExtra("STATION", mSelectStationPresenter.getStation(position));
+            intent.putExtra("STATION", getStation(position).getStationId());
+            intent.putExtra("TYPE", type);
             setResult(RESULT_OK, intent);
             finish();
 
@@ -127,24 +122,24 @@ public class SelectStationActivity extends MvpAppCompatActivity implements Selec
         finish();
     }
 
-    @Override
+
     public void startProgress() {
         progressBar.setVisibility(View.VISIBLE);
     }
 
-    @Override
+
     public void endProgress() {
         progressBar.setVisibility(View.GONE);
     }
 
-    @Override
+
     public void showStations(LinkedList<Station> stations) {
         mStationAdapter.setData(stations);
         mStationAdapter.reload();
         isRunning = false;
     }
 
-    @Override
+
     public void toast(String text) {
         Toast.makeText(this, text, Toast.LENGTH_LONG).show();
     }
@@ -159,9 +154,9 @@ public class SelectStationActivity extends MvpAppCompatActivity implements Selec
             @Override
             public boolean onQueryTextSubmit(String query) {
                 closeKeyBoard();
-                mSelectStationPresenter.newList();
+                newList();
                 mStationAdapter.reload();
-                mSelectStationPresenter.getCities(query.toString());
+                getCities(query.toString());
                 return true;
             }
 
@@ -173,6 +168,40 @@ public class SelectStationActivity extends MvpAppCompatActivity implements Selec
 
         return true;
     }
+
+
+
+    public void newList() {
+        end = false;
+        stations.clear();
+        offset = 0;
+    }
+
+    public void getCities(final String station) {
+        if (end)
+            return;
+        this.station = station;
+
+        Log.d("trekdeks", "getCities - "  + String.valueOf(type));
+
+        stations.addAll(new Station().getAllStations(new DBHelper(this), station, count, offset, type));
+
+        showStations(stations);
+
+    }
+
+
+    public Station getStation(int position) {
+        if (position >= 0 && stations.size() > position)
+            return stations.get(position);
+        return null;
+    }
+
+    public void getNextPage() {
+        offset = offset + count;
+        getCities(station);
+    }
+
 
     private RecyclerView.OnScrollListener onScroll = new RecyclerView.OnScrollListener() {
         @Override
@@ -189,7 +218,7 @@ public class SelectStationActivity extends MvpAppCompatActivity implements Selec
                     isRunning = true;
                     rvStation.post(new Runnable() {
                         public void run() {
-                            mSelectStationPresenter.getNextPage();
+                            getNextPage();
                         }
                     });
                 }
